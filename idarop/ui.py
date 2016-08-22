@@ -28,33 +28,26 @@ Search ROP gadgets
 
 {FormChangeCb}<Segments:{cEChooser}>
 
-Search Settings:
 <Bad Chars        :{strBadChars}>     
 Unicode Table    <ANSI:{rUnicodeANSI}><OEM:{rUnicodeOEM}><UTF7:{rUnicodeUTF7}><UTF8:{rUnicodeUTF8}>{radUnicode}>
 <Bad Instructions :{strBadMnems}>
-<Max gadget size  :{intMaxRopSize}>
-<Max gadget offset:{intMaxRopOffset}>
-<Max RETN imm16   :{intMaxRetnImm}>
-<Max JOP imm8/32  :{intMaxJopImm}>
-<Max gadgets      :{intMaxRops}>
-Other settings   <Allow conditional jumps:{cRopAllowJcc}>
-                <Do not allow bad bytes:{cRopNoBadBytes}>
-                <Search for ROP gadgets:{cRopSearch}>
-                <Search for JOP gadgets:{cJopSearch}>{ropGroup}>
-
-
+<Max gadget size  :{intMaxRopSize}>     Other settings :
+<Max gadget offset:{intMaxRopOffset}>          <Allow conditional jumps:{cRopAllowJcc}>
+<Max RETN imm16   :{intMaxRetnImm}>            <Do not allow bad bytes:{cRopNoBadBytes}>
+<Max JOP imm8/32  :{intMaxJopImm}>             <Search for ROP gadgets:{cRopSearch}>
+<Max gadgets      :{intMaxRops}>               <Search for JOP gadgets:{cJopSearch}>{ropGroup}>
+ 
 """, {
-                'cEChooser'       : Form.EmbeddedChooserControl(self.segments, swidth=90),
-                #'ptrGroup'        : Form.ChkGroupControl(("cPtrNonull", "cPtrAscii", "cPtrAsciiPrint", "cPtrUnicode",'cPtrAlphaNum','cPtrAlpha','cPtrNum')),
+                'cEChooser'       : Form.EmbeddedChooserControl(self.segments, swidth=110),
                 'ropGroup'        : Form.ChkGroupControl(('cRopAllowJcc','cRopNoBadBytes','cRopSearch','cJopSearch')),
                 'intMaxRopSize'   : Form.NumericInput(swidth=4,tp=Form.FT_DEC,value=self.engine.rop.maxRopSize),
                 'intMaxRopOffset' : Form.NumericInput(swidth=4,tp=Form.FT_DEC,value=self.engine.rop.maxRopOffset),
                 'intMaxRops'      : Form.NumericInput(swidth=4,tp=Form.FT_DEC,value=self.engine.rop.maxRops),
                 'intMaxRetnImm'   : Form.NumericInput(swidth=4,tp=Form.FT_HEX,value=self.engine.rop.maxRetnImm),
                 'intMaxJopImm'    : Form.NumericInput(swidth=4,tp=Form.FT_HEX,value=self.engine.rop.maxJopImm),
-                'strBadChars'     : Form.StringInput(swidth=70,tp=Form.FT_ASCII),
+                'strBadChars'     : Form.StringInput(swidth=92,tp=Form.FT_ASCII),
                 'radUnicode'      : Form.RadGroupControl(("rUnicodeANSI","rUnicodeOEM","rUnicodeUTF7","rUnicodeUTF8")),
-                'strBadMnems'     : Form.StringInput(swidth=80,tp=Form.FT_ASCII,value="leave, int, into, enter, syscall, sysenter, sysexit, sysret, in, out, loop, loope, loopne, lock, rep, repe, repz, repne, repnz"),
+                'strBadMnems'     : Form.StringInput(swidth=92,tp=Form.FT_ASCII,value="leave, int, into, enter, syscall, sysenter, sysexit, sysret, in, out, loop, loope, loopne, lock, rep, repe, repz, repne, repnz"),
                 'FormChangeCb'    : Form.FormChangeCb(self.OnFormChange),
             })
 
@@ -97,15 +90,14 @@ class SegmentView(Choose2):
         self.idarop = idarop
 
         Choose2.__init__(self, "Segments",
-                         [ ["Name",     13 | Choose2.CHCOL_PLAIN],
+                         [ ["Name",   13 | Choose2.CHCOL_PLAIN],
                            ["Start",  13 | Choose2.CHCOL_HEX], 
-                           ["End",     10 | Choose2.CHCOL_HEX], 
-                           ["Size",     10 | Choose2.CHCOL_HEX],
-                           ["R",   1 | Choose2.CHCOL_PLAIN],
-                           ["W",      1 | Choose2.CHCOL_PLAIN], 
+                           ["End",    10 | Choose2.CHCOL_HEX], 
+                           ["Size",   10 | Choose2.CHCOL_HEX],
+                           ["R",       1 | Choose2.CHCOL_PLAIN],
+                           ["W",       1 | Choose2.CHCOL_PLAIN], 
                            ["X",       1 | Choose2.CHCOL_PLAIN],
-                           #["D",    1 | Choose2.CHCOL_PLAIN],
-                           ["Class",     8 | Choose2.CHCOL_PLAIN], 
+                           ["Class",   8 | Choose2.CHCOL_PLAIN], 
                          ],
                          flags = Choose2.CH_MULTI,  # Select multiple modules
                          embedded=embedded)
