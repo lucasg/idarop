@@ -32,7 +32,11 @@ class idarop_t(plugin_t):
                     del idarop_manager
                     return idaapi.PLUGIN_SKIP
                 else:
-                    idarop_manager.load_default_csv()
+                    try:
+                        idarop_manager.load_default_csv()
+                    except Exception as e:
+                        pass
+
                     print("IDA ROP View  v%s initialized " % IDAROP_VERSION)
 
             return idaapi.PLUGIN_KEEP
@@ -45,7 +49,10 @@ class idarop_t(plugin_t):
     def term(self):
         """ On IDA's close event, export the Rop gadget list in a default csv file"""
         idaapi.show_wait_box("Saving gadgets ...")
-        idarop_manager.export_default_csv()
+        try:
+            idarop_manager.export_default_csv()
+        except Exception as e:
+            pass
         idaapi.hide_wait_box()
 
 def PLUGIN_ENTRY():
