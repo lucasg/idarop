@@ -275,7 +275,7 @@ class IdaRopView(Choose2):
                         csvwriter.writerow(item)
 
         elif cmd_id == self.clear_rop_list:
-            self.idarop.rop.gadgets = list()
+            self.idarop.clear_rop_list()
             self.refreshitems()
 
         return 1
@@ -381,8 +381,7 @@ class IdaRopManager():
     def export_default_csv(self):
         """ Export the found rop gadget in a default csv file """
 
-        ropView = IdaRopView(self.engine)
-        if len(ropView.items) == 0:
+        if len(self.engine.rop.gadgets) == 0:
             return
         
         file_name = "%s.gadgets" % idaapi.get_input_file_path()

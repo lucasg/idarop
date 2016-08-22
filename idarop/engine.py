@@ -102,10 +102,10 @@ class IdaRopSearch():
 
     def search_retns(self):
 
+        self.retns = list()
+
         # Iterate over segments in the module
         # BUG: Iterating over all loaded segments is more stable than looking up by address
-        # for n in xrange(idaapi.get_segm_qty()):
-        #     seg = idaapi.getnseg(n)
         for n in self.segments:
             seg = idaapi.getnseg(n)
 
@@ -243,8 +243,7 @@ class IdaRopSearch():
             # NOTE: Read a bit extra to cover correct decoding of RETN, RETN imm16, CALL /2, and JMP /4 instructions.
             # Bug on end of segments : self.dbg_read_extra must be 0
             dbg_read_extra = self.dbg_read_extra
-            segment_limits = ((idaapi.getnseg(seg_id).startEA, idaapi.getnseg(seg_id).endEA) for seg_id in  self.segments)
-            seg_start, seg_end = list(filter( lambda (s,e) :  ea_end > s and ea_end < e  , segment_limits))[0]
+            seg_start, seg_end = idc.SegStart(ea_end), idc.SegEnd(ea_end)
             if ea_end + dbg_read_extra > seg_end:
                 dbg_read_extra = 0
 
@@ -771,9 +770,7 @@ class IdaRopEngine():
     """ Ida ROP Engine class for process all kinds of data """
 
     def __init__(self):
-        # Process modules list
-        #self.modules = list()
-        self.rop     = None
+        self.rop  = None
 
         if not idaapi.ph.id == idaapi.PLFM_386:
             print "[idasploiter] Only Intel 80x86 processors are supported."
@@ -816,25 +813,20 @@ class IdaRopEngine():
 
         return self.segments
 
+    def clear_rop_list(self):
+        """ Clear previous rop search results """
+        self.rop.gadgets = list()
 
     def process_rop(self, form,  select_list = None):
+        """ Look for rop gadgets using user-input search options """
 
-
-        # Configure ROP gadget search engine
-
+        # Clear previous results
+        self.clear_rop_list()
+        
         # Get selected segments
         self.rop.segments = [self.segments_idx[i] for i in select_list]
 
         if len(self.rop.segments) > 0:
-
-            # Pointer filters
-            # self.rop.ptrNonull     = form.cPtrNonull.checked
-            # self.rop.ptrUnicode    = form.cPtrUnicode.checked
-            # self.rop.ptrAscii      = form.cPtrAscii.checked
-            # self.rop.ptrAsciiPrint = form.cPtrAsciiPrint.checked
-            # self.rop.ptrAlphaNum   = form.cPtrAlphaNum.checked
-            # self.rop.ptrAlpha      = form.cPtrAlpha.checked
-            # self.rop.ptrNum        = form.cPtrNum.checked
 
             # Filter bad characters
             buf                    = form.strBadChars.value
