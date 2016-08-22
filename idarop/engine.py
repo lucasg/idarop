@@ -242,15 +242,26 @@ class IdaRopSearch():
             # NOTE: Read a bit extra to cover correct decoding of RETN, RETN imm16, CALL /2, and JMP /4 instructions.
             # Bug on end of segments : self.dbg_read_extra must be 0
             dbg_read_extra = self.dbg_read_extra
-            if ea_end in (idaapi.getnseg(seg_id).endEA for seg_id in  self.segments):
-                print("End of segment here : %x" % endEA)
+            segment_limits = ((idaapi.getnseg(seg_id).startEA, idaapi.getnseg(seg_id).endEA) for seg_id in  self.segments)
+            seg_start, seg_end = list(filter( lambda (s,e) :  ea_end > s and ea_end < e  , segment_limits))[0]
+            if ea_end + dbg_read_extra > seg_end:
                 dbg_read_extra = 0
 
             for i in range(self.maxRopOffset):
-                #self.dbg_mem_cache = idaapi.dbg_read_memory(ea_end - self.maxRopOffset + i, self.maxRopOffset - i + self.dbg_read_extra)
                 self.dbg_mem_cache = idc.GetManyBytes(ea_end - self.maxRopOffset + i, self.maxRopOffset - i + self.dbg_read_extra)
                 if self.dbg_mem_cache != None:
                     break
+
+            # Error while reading memory (Ida sometimes does not want to read uninit data)
+            if self.dbg_mem_cache == None:
+                for backward_size in range(self.maxRopOffset, 0, -1):
+                    self.dbg_mem_cache = idc.GetManyBytes(ea_end - backward_size, backward_size)
+                    if self.dbg_mem_cache != None:
+                        break
+
+            # Big problem ahead
+            if self.dbg_mem_cache == None:
+                print("[Ida Search Error] could not read bytes [0x%x, 0x%x]" % (ea_end - self.maxRopOffset + i, ea_end - self.maxRopOffset + i + self.maxRopOffset - i + self.dbg_read_extra))
             
             # Search all possible gadgets up to maxoffset bytes back
             # NOTE: Try all byte combinations to capture longer/more instructions
