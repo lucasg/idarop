@@ -11,14 +11,12 @@ import csv
 
 from .engine import IdaRopEngine, IdaRopSearch, Gadget
 
-###############################################################################
-# ROP/JOP/COP Form
 
 class IdaRopForm(Form):
+    """ Ida Rop Search input form """
 
-    def __init__(self, idarop, idaropengine,  select_list = None):
+    def __init__(self, idaropengine,  select_list = None):
 
-        self.idarop = idarop
         self.engine = idaropengine
         self.select_list = select_list
 
@@ -306,45 +304,49 @@ class IdaRopView(Choose2):
 
 
 
-###############################################################################
-
 class IdaRopManager():
+    """ Top-level object managing IDA Rop View plugin """
 
     def __init__(self): 
-        self.addmenu_item_ctxs = list()
-        self.idarop = IdaRopEngine()
-
+ 
         # Initialize ROP gadget search engine
-        self.idarop.rop = IdaRopSearch(self.idarop)
+        self.engine = IdaRopEngine()
+        self.engine.rop = IdaRopSearch(self.engine)
 
         # Defered csv loading for a faster startup
         self.defered_loading = False
 
-    ###########################################################################
-    # Menu Items
-    def add_menu_item_helper(self, menupath, name, hotkey, flags, pyfunc, args):
-
-        # add menu item and report on errors
-        addmenu_item_ctx = idaapi.add_menu_item(menupath, name, hotkey, flags, pyfunc, args)
-        if addmenu_item_ctx is None:
-            return 1
-        else:
-            self.addmenu_item_ctxs.append(addmenu_item_ctx)
-            return 0
+        # List of menu item added by the plugin
+        self.addmenu_item_ctxs = list()
+    
 
     def add_menu_items(self):
-        if self.add_menu_item_helper("Search/all error operands", "list rop gadgets...", "Shift+Ctrl+r", 1, self.proc_rop, None): return 1
-        if self.add_menu_item_helper("View/Open subviews/Problems", "View rop gadgets...", "Shift+r", 1, self.show_rop_view, None): return 1
+        """ Init additions to Ida's menu entries """
+
+        def add_menu_item_helper(self, menupath, name, hotkey, flags, pyfunc, args):
+            """ helper for adding a menu item  """
+
+            # add menu item and report on errors
+            addmenu_item_ctx = idaapi.add_menu_item(menupath, name, hotkey, flags, pyfunc, args)
+            if addmenu_item_ctx is None:
+                return 1
+            else:
+                self.addmenu_item_ctxs.append(addmenu_item_ctx)
+                return 0
+
+        if add_menu_item_helper(self, "Search/all error operands", "list rop gadgets...", "Ctrl+Shift+r", 1, self.proc_rop, None): return 1
+        if add_menu_item_helper(self, "View/Open subviews/Problems", "View rop gadgets...", "Shift+r", 1, self.show_rop_view, None): return 1
         return 0
 
+    
     def del_menu_items(self):
+        """ Clear Ida Rop plugin menu entries """
         for addmenu_item_ctx in self.addmenu_item_ctxs:
             idaapi.del_menu_item(addmenu_item_ctx)
 
-    ###########################################################################
-
-    # ROP View
+    
     def show_rop_view(self):
+        """ Show the list of rop gadgets found """
 
         # If the default csv exist but has not been loaded, load here
         if self.defered_loading == True:
@@ -354,19 +356,20 @@ class IdaRopManager():
             self.defered_loading = False
 
         # Show the ROP gadgets view
-        ropView = IdaRopView(self.idarop)
+        ropView = IdaRopView(self.engine)
         ropView.show()
 
     def proc_rop(self):
+        """ Search for rop gadgets, based on user input options """
         
         # Prompt user for ROP search settings
-        f = IdaRopForm(self, self.idarop)
+        f = IdaRopForm(self.engine)
         ok = f.Execute()
         if ok == 1:
             # reset previous results
             self.defered_loading = False
 
-            ret = self.idarop.process_rop(f, f.segments.GetEmbSelection())
+            ret = self.engine.process_rop(f, f.segments.GetEmbSelection())
 
             if ret:
                 self.show_rop_view()

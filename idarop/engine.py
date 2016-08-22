@@ -287,7 +287,7 @@ class IdaRopSearch():
                     # Exceeded maximum number of gadgets
                     if self.maxRops and len(self.gadgets) >= self.maxRops:
                         breakFlag = True
-                        print "[idasploiter] Maximum number of gadgets exceeded."
+                        print "[Ida Rop] Maximum number of gadgets exceeded."
                         break
                 else:
                     self.gadgets_cache[ea] = None
@@ -296,11 +296,12 @@ class IdaRopSearch():
                     breakFlag = True
                     break
 
+
             # Canceled
             # NOTE: Only works when started from GUI not script.
             if breakFlag or idaapi.wasBreak():
                 breakFlag = True
-                print "[idasploiter] Canceled."
+                print "[IdaRopSearch] Canceled."
                 break
 
             # Progress report
