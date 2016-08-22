@@ -38,7 +38,8 @@ class Gadget(namedtuple('Gadget', 'address ret_address instructions opcodes size
         """ Return the display format list for the rop gadget listing """
         txt_instructions = " ; ".join(self.instructions)
         txt_opcodes = " ".join("%02x" % ord(op) for op in self.opcodes)
-        return [ address_format % self.address, 
+        return [ idc.SegName(self.address),
+                 address_format % self.address, 
                  address_format % self.ret_address, 
                  txt_instructions,
                  txt_opcodes,

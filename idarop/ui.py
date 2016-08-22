@@ -180,7 +180,8 @@ class IdaRopView(Choose2):
 
         Choose2.__init__(self,
                          "ROP gadgets",
-                         [ ["Address",           13 | Choose2.CHCOL_HEX],
+                         [ ["Segment",           13 | Choose2.CHCOL_PLAIN],
+                           ["Address",           13 | Choose2.CHCOL_HEX],
                            ["Return Address",    13 | Choose2.CHCOL_HEX], 
                            ["Gadget",            30 | Choose2.CHCOL_PLAIN], 
                            ["Opcodes",           20 | Choose2.CHCOL_PLAIN],
@@ -390,16 +391,16 @@ class IdaRopManager():
             csvwriter = csv.writer(csvfile, delimiter=',',
                                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
             csvwriter.writerow(["Address","Return address"])
-            for item in ropView.items:
-                address,ret_addres, insn, opcodes,size,pivot = item
-                offset = "0x%x" % (int(address, 16) - idaapi.get_imagebase())
-                ret_offset = "0x%x" % (int(ret_addres, 16) - idaapi.get_imagebase())
+            for item in self.engine.rop.gadgets:
+                address,ret_addres = item.address, item.ret_address
+                offset = "0x%x" % (address - idaapi.get_imagebase())
+                ret_offset = "0x%x" % (ret_addres - idaapi.get_imagebase())
 
                 csvwriter.writerow((offset, ret_offset))
 
                 if idaapi.wasBreak():
                     cancel_flag = True
-                    print("[IdaRopLoad] Save csv file interrupted.")
+                    print("[IdaRop] save csv file interrupted.")
                     break
 
         # Delete partial save
