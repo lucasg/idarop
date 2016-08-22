@@ -182,9 +182,10 @@ class IdaRopView(Choose2):
 
         Choose2.__init__(self,
                          "ROP gadgets",
-                         [ ["Address",           13 | Choose2.CHCOL_HEX], 
+                         [ ["Address",           13 | Choose2.CHCOL_HEX],
+                           ["Return Address",    13 | Choose2.CHCOL_HEX], 
                            ["Gadget",            30 | Choose2.CHCOL_PLAIN], 
-                           #["Opcodes",          10 | Choose2.CHCOL_PLAIN],
+                           ["Opcodes",           20 | Choose2.CHCOL_PLAIN],
                            ["Size",               3 | Choose2.CHCOL_DEC],
                            ["Pivot",              4 | Choose2.CHCOL_DEC],
                          ],
@@ -218,9 +219,46 @@ class IdaRopView(Choose2):
     def refreshitems(self):
         self.items = []
 
-        if self.idarop.rop != None and len(self.idarop.rop.gadgets):
-            for g in self.idarop.rop.gadgets:
+        if self.idarop.rop == None or len(self.idarop.rop.gadgets) == 0:
+            return
+
+        if len(self.idarop.rop.gadgets) > 10000:
+            idaapi.show_wait_box("Ida rop : loading rop list ...")
+
+        for g in self.idarop.rop.gadgets:
+
+            # reconstruct disas
+            if g.opcodes == "":
+
+                bad_gadget = False
+                opcodes = idc.GetManyBytes(g.address, g.ret_address - g.address + 1)
+                instructions = list()
+                ea = g.address
+                while ea <= g.ret_address:
+                    instructions.append(idc.GetDisasmEx(ea, idaapi.GENDSM_FORCE_CODE))
+                    ea += idaapi.decode_insn(ea) 
+
+                    # Badly decoded gadget
+                    if idaapi.decode_insn(ea) == 0:
+                        bad_gadget = True
+                        break
+
+
+                if not bad_gadget:
+                    h = Gadget(
+                        address = g.address,
+                        ret_address = g.ret_address,
+                        instructions = instructions,
+                        opcodes = opcodes,
+                        size = len(opcodes)
+                    )
+
+                    self.items.append(h.get_display_list(self.idarop.addr_format))
+            else:
                 self.items.append(g.get_display_list(self.idarop.addr_format))
+
+        if len(self.idarop.rop.gadgets) > 10000:
+            idaapi.hide_wait_box()
 
     def OnCommand(self, n, cmd_id):
 
@@ -339,20 +377,31 @@ class IdaRopManager():
     def export_default_csv(self):
         """ Export the found rop gadget in a default csv file """
 
-        ropView = IdaRopView(self.idarop)
+        ropView = IdaRopView(self.engine)
         if len(ropView.items) == 0:
             return
-
+        
         file_name = "%s.gadgets" % idaapi.get_input_file_path()
+        cancel_flag = False
         with open(file_name, 'wb') as csvfile:
             csvwriter = csv.writer(csvfile, delimiter=',',
                                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            csvwriter.writerow(["Offset","Instructions", "Size","Pivot"])
+            csvwriter.writerow(["Address","Return address"])
             for item in ropView.items:
-                address,insn,size,pivot = item
+                address,ret_addres, insn, opcodes,size,pivot = item
                 offset = "0x%x" % (int(address, 16) - idaapi.get_imagebase())
-                csvwriter.writerow((offset, insn, size, pivot))
+                ret_offset = "0x%x" % (int(ret_addres, 16) - idaapi.get_imagebase())
 
+                csvwriter.writerow((offset, ret_offset))
+
+                if idaapi.wasBreak():
+                    cancel_flag = True
+                    print("[IdaRopLoad] Save csv file interrupted.")
+                    break
+
+        # Delete partial save
+        if cancel_flag:
+            os.path.remove(file_name)
 
     def load_default_csv(self, force=False):
         """ Load the rop gadgets list from a default csv file """
@@ -366,6 +415,7 @@ class IdaRopManager():
             self.defered_loading = True
             return
 
+        
         with open(file_name, 'rb') as csvfile:
             csvreader = csv.reader(csvfile, delimiter=',',
                                             quotechar='"', quoting=csv.QUOTE_MINIMAL)
@@ -373,16 +423,22 @@ class IdaRopManager():
             header = next(csvreader)
 
             for row in csvreader:
-                offset,instructions, size, pivot = row
+                offset,ret_offset = row
                 
                 # Reconstruct linear address based on binary base address and offset
                 address = int(offset, 16) + idaapi.get_imagebase()
-
+                ret_address = int(ret_offset, 16) + idaapi.get_imagebase()
 
                 gadget = Gadget(
-                    address = address,                    
-                    instructions = instructions,
-                    size = int(size),
-                    pivot = int(pivot))
+                    address = address,
+                    ret_address =  ret_address,
+                    instructions = list(),
+                    opcodes = "",
+                    size = 0
+                )
 
-                self.idarop.rop.gadgets.append(gadget)
+                self.engine.rop.gadgets.append(gadget)
+
+                if idaapi.wasBreak():
+                    print("[IdaRopLoad] Load csv file interrupted.")
+                    break

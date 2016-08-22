@@ -8,14 +8,14 @@ import idc
 import binascii
 from struct import pack, unpack
 from collections import namedtuple
-#from ctypes import *
+
 
 ###############################################################################
 # Data Structure class
 
-# Segment entry container for listing segments and characteristics
 class SegmentEntry(namedtuple('Segment','name start end size r w x segclass')):
-    
+    """ Segment entry container for listing segments and characteristics  """
+
     __slots__ = ()
 
     def get_display_list(self):
@@ -29,16 +29,22 @@ class SegmentEntry(namedtuple('Segment','name start end size r w x segclass')):
                  (".", "X")[self.x],
                  self.segclass]
 
-# Gadget element container for rop listing and export to csv
-class Gadget(namedtuple('Gadget', 'address instructions size pivot')):
+class Gadget(namedtuple('Gadget', 'address ret_address instructions opcodes size')):
+    """ Gadget element container for rop listing and export to csv """
+
     __slots__ = ()
 
     def get_display_list(self, address_format):
         """ Return the display format list for the rop gadget listing """
+        txt_instructions = " ; ".join(self.instructions)
+        txt_opcodes = " ".join("%02x" % ord(op) for op in self.opcodes)
         return [ address_format % self.address, 
-                 " ; ".join(self.instructions),
-                 "%d" % self.size, 
-                 "%d" % self.pivot]
+                 address_format % self.ret_address, 
+                 txt_instructions,
+                 txt_opcodes,
+                 "%d" % len(self.opcodes), 
+                 ("N", "Y")["sp" in txt_instructions]
+                 ]
 
 
 
@@ -204,8 +210,8 @@ class IdaRopSearch():
                             else:
                                 self.retns.append( (ea ))#m.file))
 
-
         print "[IdaRopSearch] Found %d returns" % len(self.retns)
+
 
     def search_gadgets(self):
 
@@ -255,14 +261,9 @@ class IdaRopSearch():
 
                 # Try to build a gadget at the pointer
                 gadget = self.build_gadget(ea, ea_end)
-
+                
                 # Successfully built the gadget
                 if gadget:
-
-                    # Populate gadget object with more data
-                    #gadget.address = ea
-                    #gadget.module = module
-                    # gadget.ptr_charset = ptr_charset
 
                     # Filter gadgets with too many instruction
                     if gadget.size > self.maxRopSize: 
@@ -314,6 +315,7 @@ class IdaRopSearch():
         use_registers = set()
         operations    = set()
         pivot         = 0
+        start_ea = ea
 
         # Process each instruction in the gadget
         while ea <= ea_end:
@@ -336,22 +338,18 @@ class IdaRopSearch():
                     for insn in gadget_cache.instructions:
                         instructions.append(insn)
 
-                    # for reg in gadget_cache.chg_registers:
-                    #     chg_registers.add(reg)
-
-                    # for reg in gadget_cache.use_registers:
-                    #     use_registers.add(reg)
-
-                    # for op in gadget_cache.operations:
-                    #     operations.add(op)
-
-                    pivot += gadget_cache.pivot
-
+                    #pivot += gadget_cache.pivot
+                    opcodes = idc.GetManyBytes(start_ea, ea_end - start_ea + 1)
+                    
                     gadget = Gadget(
-                        address = ea,
+                        address = start_ea,
+                        ret_address = ea_end,
                         instructions = instructions,
-                        size = len(instructions), 
-                        pivot = pivot)
+                        opcodes = opcodes,
+                        size = len(opcodes), 
+                        #pivot = pivot
+                        )
+
                     return gadget
 
                 # Previous attempt to build gadget at this address failed
@@ -413,11 +411,16 @@ class IdaRopSearch():
                         #######################################################
                         # Expected ending instruction of the gadget
                         if ea == ea_end:
+                            opcodes = idc.GetManyBytes(start_ea, ea_end - start_ea + 1)
+                            
                             gadget = Gadget(
-                                address = ea,
+                                address = start_ea,
+                                ret_address = ea_end,
                                 instructions = instructions,
-                                size = len(instructions), 
-                                pivot = pivot)
+                                opcodes = opcodes,
+                                size = len(opcodes), 
+                                #pivot = pivot
+                                )
                             return gadget
 
                         #######################################################
