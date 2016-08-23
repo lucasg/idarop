@@ -1,4 +1,4 @@
-IDAROP_VERSION = "0.1"
+IDAROP_VERSION = "0.2"
 
 # IDA libraries
 import idaapi
@@ -27,17 +27,17 @@ class idarop_t(plugin_t):
 
                 idarop_manager = IdaRopManager()
                 if idarop_manager.add_menu_items():
-                    print "Failed to initialize IDA Sploiter."
+                    print("[IdaRop] Failed to initialize IDA Sploiter.")
                     idarop_manager.del_menu_items()
                     del idarop_manager
                     return idaapi.PLUGIN_SKIP
                 else:
                     try:
-                        idarop_manager.load_default_csv()
+                        idarop_manager.load_internal_db()
                     except Exception as e:
                         pass
 
-                    print("IDA ROP View  v%s initialized " % IDAROP_VERSION)
+                    print("[IdaRop] IDA ROP View  v%s initialized " % IDAROP_VERSION)
 
             return idaapi.PLUGIN_KEEP
         else:
@@ -50,7 +50,7 @@ class idarop_t(plugin_t):
         """ On IDA's close event, export the Rop gadget list in a default csv file"""
         idaapi.show_wait_box("Saving gadgets ...")
         try:
-            idarop_manager.export_default_csv()
+            idarop_manager.save_internal_db()
         except Exception as e:
             pass
         idaapi.hide_wait_box()

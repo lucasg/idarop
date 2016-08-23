@@ -5,6 +5,15 @@ import idaapi
 import idc
 from idaapi import Form, Choose2
 
+# IDA plugin
+try :
+    import netnode
+    netnode_package = True
+except ImportError as ie:
+    netnode_package =  False
+    
+
+
 # Python libraries
 import os
 import csv
@@ -187,6 +196,9 @@ class IdaRopView(Choose2):
         # Items for display
         self.items = []
 
+        # rop list cache for instantaneous loading if there has not been any new data
+        self.rop_list_cache = None
+
         # Initialize/Refresh the view
         self.refreshitems()
 
@@ -195,6 +207,8 @@ class IdaRopView(Choose2):
 
         # clear result command
         self.clear_rop_list = None
+
+        
 
     def show(self):
         # Attempt to open the view
@@ -208,15 +222,21 @@ class IdaRopView(Choose2):
         return True
 
     def refreshitems(self):
-        self.items = []
 
+        # No data present
         if self.idarop.rop == None or len(self.idarop.rop.gadgets) == 0:
             return
+
+        # No new data present
+        if self.rop_list_cache == self.idarop.rop.gadgets:
+            return
+
+        self.items = []
 
         if len(self.idarop.rop.gadgets) > 10000:
             idaapi.show_wait_box("Ida rop : loading rop list ...")
 
-        for g in self.idarop.rop.gadgets:
+        for i,g in enumerate(self.idarop.rop.gadgets):
 
             # reconstruct disas
             if g.opcodes == "":
@@ -243,13 +263,17 @@ class IdaRopView(Choose2):
                         opcodes = opcodes,
                         size = len(opcodes)
                     )
+                    self.idarop.rop.gadgets[i] = h
 
                     self.items.append(h.get_display_list(self.idarop.addr_format))
             else:
                 self.items.append(g.get_display_list(self.idarop.addr_format))
 
+        self.rop_list_cache = self.idarop.rop.gadgets
         if len(self.idarop.rop.gadgets) > 10000:
             idaapi.hide_wait_box()
+
+
 
     def OnCommand(self, n, cmd_id):
 
@@ -305,12 +329,21 @@ class IdaRopManager():
         # Initialize ROP gadget search engine
         self.engine = IdaRopEngine()
         self.engine.rop = IdaRopSearch(self.engine)
+        self.ropView = IdaRopView(self.engine)
 
         # Defered csv loading for a faster startup
         self.defered_loading = False
 
         # List of menu item added by the plugin
         self.addmenu_item_ctxs = list()
+
+        # blob manager for saving internal db into idb file
+        self.blob_manager = None
+        if netnode_package :
+            self.blob_manager = netnode.Netnode("$ idarop.rop_blob")
+        else:
+            print("[IdaRop] IdaRop rely on the Netnode package to save the rop database in the idb file.")
+            print("         Since it's not present, the results will be discarded when closing IDA.")
     
 
     def add_menu_items(self):
@@ -349,8 +382,8 @@ class IdaRopManager():
             self.defered_loading = False
 
         # Show the ROP gadgets view
-        ropView = IdaRopView(self.engine)
-        ropView.show()
+        self.ropView.refreshitems()
+        self.ropView.show()
 
     def proc_rop(self):
         """ Search for rop gadgets, based on user input options """
@@ -370,55 +403,44 @@ class IdaRopManager():
         f.Free()
 
 
-    def export_default_csv(self):
-        """ Export the found rop gadget in a default csv file """
+    def save_internal_db(self):
+        """ store the found rop gadget in the default internal db """
 
-        if len(self.engine.rop.gadgets) == 0:
+        if len(self.engine.rop.gadgets) == 0 or self.blob_manager == None:
             return
         
-        file_name = "%s.gadgets" % idaapi.get_input_file_path()
         cancel_flag = False
-        with open(file_name, 'wb') as csvfile:
-            csvwriter = csv.writer(csvfile, delimiter=',',
-                                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            csvwriter.writerow(["Address","Return address"])
-            for item in self.engine.rop.gadgets:
+        internal_repr = list()
+        for item in self.engine.rop.gadgets:
+
                 address,ret_addres = item.address, item.ret_address
                 offset = "0x%x" % (address - idaapi.get_imagebase())
                 ret_offset = "0x%x" % (ret_addres - idaapi.get_imagebase())
 
-                csvwriter.writerow((offset, ret_offset))
+                internal_repr.append((offset, ret_offset))
 
                 if idaapi.wasBreak():
                     cancel_flag = True
-                    print("[IdaRop] save csv file interrupted.")
+                    print("[IdaRop] save internal db interrupted.")
                     break
 
-        # Delete partial save
-        if cancel_flag:
-            os.path.remove(file_name)
+        # save only on success
+        if not cancel_flag:
+            txt_repr = ";".join( "%s:%s" % (g[0],g[1]) for g in internal_repr)
+            self.blob_manager["db"] = txt_repr
 
-    def load_default_csv(self, force=False):
-        """ Load the rop gadgets list from a default csv file """
+    def load_internal_db(self, force=False):
+        """ Load the rop gadgets list from the internal db """
 
-        file_name = "%s.gadgets" % idaapi.get_input_file_path()
-        if not os.path.lexists(file_name) or not os.path.isfile(file_name):
+        if self.blob_manager == None :
             return
 
-        if os.path.getsize(file_name) > 0x1400000 and force == False:
-            print("IDA ROP loading csv : csv file too big to be loaded on startup. It will loaded on first call to 'View Rop gadgets'")
-            self.defered_loading = True
+        internal_repr =  self.blob_manager["db"].split(";")
+        if internal_repr == None:
             return
 
-        
-        with open(file_name, 'rb') as csvfile:
-            csvreader = csv.reader(csvfile, delimiter=',',
-                                            quotechar='"', quoting=csv.QUOTE_MINIMAL)
-            # ignore header
-            header = next(csvreader)
-
-            for row in csvreader:
-                offset,ret_offset = row
+        for item in internal_repr:
+                offset,ret_offset = item.split(':')
                 
                 # Reconstruct linear address based on binary base address and offset
                 address = int(offset, 16) + idaapi.get_imagebase()
