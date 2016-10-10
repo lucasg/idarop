@@ -223,15 +223,20 @@ class IdaRopView(Choose2):
 
     def refreshitems(self):
 
-        # No data present
-        if self.idarop.rop == None or len(self.idarop.rop.gadgets) == 0:
-            return
+        # Pb : rop engine has not been init
+        if self.idarop.rop == None:
+            return 
 
         # No new data present
         if self.rop_list_cache == self.idarop.rop.gadgets:
             return
 
         self.items = []
+
+        # No data present
+        if len(self.idarop.rop.gadgets) == 0:
+            return
+
 
         if len(self.idarop.rop.gadgets) > 10000:
             idaapi.show_wait_box("Ida rop : loading rop list ...")
@@ -399,6 +404,9 @@ class IdaRopManager():
 
             if ret:
                 self.show_rop_view()
+
+                # force redraw of every list views
+                idaapi.refresh_lists()
 
         f.Free()
 
