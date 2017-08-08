@@ -287,7 +287,7 @@ class IdaRopView(Choose2):
 
             file_name = idaapi.askfile_c(1, "*.csv", "Please enter CSV file name")
             if file_name:
-                print "[idarop] Exporting gadgets to %s" % file_name
+                print ("[idarop] Exporting gadgets to %s" % file_name)
                 with open(file_name, 'wb') as csvfile:
                     csvwriter = csv.writer(csvfile, delimiter=',',
                                             quotechar='"', quoting=csv.QUOTE_MINIMAL)

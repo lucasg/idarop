@@ -211,7 +211,7 @@ class IdaRopSearch():
                             else:
                                 self.retns.append( (ea ))#m.file))
 
-        print "[IdaRopSearch] Found %d returns" % len(self.retns)
+        print("[IdaRopSearch] Found %d returns" % len(self.retns))
 
 
     def search_gadgets(self):
@@ -287,7 +287,7 @@ class IdaRopSearch():
                     # Exceeded maximum number of gadgets
                     if self.maxRops and len(self.gadgets) >= self.maxRops:
                         breakFlag = True
-                        print "[Ida Rop] Maximum number of gadgets exceeded."
+                        print("[Ida Rop] Maximum number of gadgets exceeded.")
                         break
                 else:
                     self.gadgets_cache[ea] = None
@@ -301,7 +301,7 @@ class IdaRopSearch():
             # NOTE: Only works when started from GUI not script.
             if breakFlag or idaapi.wasBreak():
                 breakFlag = True
-                print "[IdaRopSearch] Canceled."
+                print ("[IdaRopSearch] Canceled.")
                 break
 
             # Progress report
@@ -314,7 +314,7 @@ class IdaRopSearch():
 
             count_curr += 1            
 
-        print "[IdaRopSearch] Found %d gadgets." % len(self.gadgets)
+        print ("[IdaRopSearch] Found %d gadgets." % len(self.gadgets))
         if not self.debug: idaapi.hide_wait_box()
 
 
@@ -773,7 +773,7 @@ class IdaRopEngine():
         self.rop  = None
 
         if not idaapi.ph.id == idaapi.PLFM_386:
-            print "[idasploiter] Only Intel 80x86 processors are supported."
+            print ("[idasploiter] Only Intel 80x86 processors are supported.")
             sys.exit(1)
 
         # Check if processor supports 64-bit addressing
@@ -836,7 +836,7 @@ class IdaRopEngine():
             try:
                 buf = binascii.unhexlify(buf) # convert to bytes
                 self.ptrBadChars   = buf
-            except Exception, e:
+            except Exception as e:
                 idaapi.warning("Invalid input: %s" % e)
                 self.ptrBadChars   = ""
 
