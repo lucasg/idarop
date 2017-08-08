@@ -1,16 +1,14 @@
-IDAROP_VERSION = "0.2"
-
 # IDA libraries
 import idaapi
 from idaapi import plugin_t
 
-from idarop import IdaRopManager
+from idarop import IdaRopManager, IDAROP_VERSION, IDAROP_DESCRIPTION
 
 class idarop_t(plugin_t):
 
     flags = idaapi.PLUGIN_UNL
-    comment = "ROP search and visualization plugin for IDA."
-    help = "ROP search and visualization plugin for IDA."
+    comment = IDAROP_DESCRIPTION
+    help = IDAROP_DESCRIPTION
     wanted_name = "IDA ROP"
     wanted_hotkey = ""
 
