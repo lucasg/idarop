@@ -2,6 +2,8 @@ from setuptools import setup, find_packages
 from __ida_setup__ import IdaPluginInstallCommand
 from idarop import IDAROP_VERSION, IDAROP_DESCRIPTION
 
+
+
 setup(
     name = 'idarop',
     version = IDAROP_VERSION,
@@ -17,10 +19,15 @@ setup(
 
     packages = find_packages(),
 
-    package_data={
-        # Add any ida python plugin here
-        'ida_plugins': ['idarop_plugin_t.py'],
+    # Declare you ida plugins here
+    ida_plugins = ['idarop_plugin_t.py'],
+
+    package_data = {
+        # copy any ida python plugin here
+        # for pypi sdist
+        '': ['idarop_plugin_t.py'],
     },
+    include_package_data = True,
     
     # monkey patch install script for IDA plugin custom install
     cmdclass={'ida_install': IdaPluginInstallCommand}   

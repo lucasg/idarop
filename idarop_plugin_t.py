@@ -2,7 +2,8 @@
 import idaapi
 from idaapi import plugin_t
 
-from idarop import IdaRopManager, IDAROP_VERSION, IDAROP_DESCRIPTION
+from idarop import IDAROP_VERSION, IDAROP_DESCRIPTION
+from idarop.ui import IdaRopManager
 
 class idarop_t(plugin_t):
 
