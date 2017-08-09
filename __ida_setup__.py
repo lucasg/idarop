@@ -1,21 +1,23 @@
 import os
 import sys
-from distutils.core import setup, Command
+import distutils
+from distutils.core import setup
+from setuptools.command.install import install
 
 
 IDA_INSTALL_DIRS = {
     
     # On Windows, the folder is at C:\Program Files (x86)\IDA %d\plugins
     'win32' : {
-        '6.8' : os.path.join(os.environ["ProgramFiles(x86)"], "IDA 6.8", "plugins"),
-        '6.9' : os.path.join(os.environ["ProgramFiles(x86)"], "IDA 6.9", "plugins"),
-        '7.0' : os.path.join(os.environ["ProgramFiles(x86)"], "IDA 7.0", "plugins"),
+        '6.8' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.8", "plugins"),
+        '6.9' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.9", "plugins"),
+        '7.0' : os.path.join(os.environ.get("ProgramFiles", "KeyError"), "IDA 7.0", "plugins"),
     },
 
     'cygwin': {
-        '6.8' : os.path.join(os.environ["ProgramFiles(x86)"], "IDA 6.8", "plugins"),
-        '6.9' : os.path.join(os.environ["ProgramFiles(x86)"], "IDA 6.9", "plugins"),
-        '7.0' : os.path.join(os.environ["ProgramFiles(x86)"], "IDA 7.0", "plugins"),
+        '6.8' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.8", "plugins"),
+        '6.9' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.9", "plugins"),
+        '7.0' : os.path.join(os.environ.get("ProgramFiles", "KeyError"), "IDA 7.0", "plugins"),
     },
 
     # On MacOS, the folder is at /Applications/IDA\ Pro\ %d/idaq.app/Contents/MacOS/plugins
@@ -39,13 +41,14 @@ IDA_INSTALL_DIRS = {
     }   
 }       
 
-class IdaPluginInstallCommand(Command):
+class IdaPluginInstallCommand(install):
     description = "install the current plugin in IDA plugin folder."
-    user_options = [
+    user_options = install.user_options + [
         ('ida=', None, 'specify ida version.'),
     ]
 
     def initialize_options(self):
+        install.initialize_options(self)
         self.ida = None # locate default ida version
 
     def finalize_options(self):
@@ -62,7 +65,7 @@ class IdaPluginInstallCommand(Command):
         assert self.ida in IDA_INSTALL_DIRS[sys.platform].keys(), 'Supported IDA on this platform : %s' % IDA_INSTALL_DIRS[sys.platform].keys()
 
     def install_dependencies(self, dist, install_dir):
-        # type:  (distutils.core.Command, setuptools.dist.Distribution, str) -> void
+        # type:  (distutils.core.install, setuptools.dist.Distribution, str) -> void
         """ Recursively install dependency using pip (for those on pipy) """
 
         if not len(dist.install_requires):
@@ -75,27 +78,28 @@ class IdaPluginInstallCommand(Command):
         import pip
 
         for dependency in dist.install_requires:
-            print("[IDA PLUGIN INSTALL] installing dependency %s -> %s" % (dependency, install_dir))
+            self.announce("[IDA PLUGIN INSTALL] installing dependency %s -> %s" % (dependency, install_dir), level=distutils.log.INFO)
 
             if not dist.dry_run:
                 pip.main(['install', '-t', install_dir, "--ignore-installed" ,  dependency])
 
     def install_packages(self, dist, install_dir):
-        # type:  (distutils.core.Command, setuptools.dist.Distribution, str) -> void
+        # type:  (distutils.core.install, setuptools.dist.Distribution, str) -> void
         """ Install python packages """
 
         for package in dist.packages:
-            print("[IDA PLUGIN INSTALL] copy package %s -> %s" % (package, install_dir))
+            self.announce("[IDA PLUGIN INSTALL] copy package %s -> %s" % (package, install_dir), level=distutils.log.INFO)
 
             if not dist.dry_run:
                 self.copy_tree(package, os.path.join(install_dir, package))
 
     def install_plugins(self, dist, install_dir):
-        # type:  (distutils.core.Command, setuptools.dist.Distribution, str) -> void
+        # type:  (distutils.core.install, setuptools.dist.Distribution, str) -> void
         """ Install ida plugins entry points """
 
-        for plugin in dist.ida_plugins:
-            print("[IDA PLUGIN INSTALL] copy plugin %s -> %s" % (plugin, install_dir))
+        ida_plugins = dist.package_data.get('ida_plugins', [])
+        for plugin in ida_plugins:
+            self.announce("[IDA PLUGIN INSTALL] copy plugin %s -> %s" % (plugin, install_dir), level=distutils.log.INFO)
 
             if not dist.dry_run:
                 self.copy_file(plugin,install_dir)
@@ -110,5 +114,3 @@ class IdaPluginInstallCommand(Command):
         self.install_dependencies(dist, install_dir)
         self.install_packages(dist, install_dir)
         self.install_plugins(dist, install_dir)
-
-        
