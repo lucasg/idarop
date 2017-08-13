@@ -44,25 +44,32 @@ IDA_INSTALL_DIRS = {
 class IdaPluginInstallCommand(install):
     description = "install the current plugin in IDA plugin folder."
     user_options = install.user_options + [
-        ('ida=', None, 'specify ida version.'),
+        ('ida', None, 'force custom ida install script.'),
+        ('ida-version=', None, 'specify ida version.'),
+        ('ida-install-deps', None, 'install ida plugin dependencies.'),
     ]
 
     def initialize_options(self):
         install.initialize_options(self)
-        self.ida = None # locate default ida version
+        self.ida = False # explicitely tell setuptools to use the ida setup script
+        self.ida_version = None # locate default ida version
+        self.ida_install_deps = False # Install plugin deps
 
     def finalize_options(self):
         
         # Search for a supported version installed
-        if self.ida == None:
+        if self.ida_version == None:
+
             for ida_version in IDA_INSTALL_DIRS[sys.platform]:
                 if os.path.exists(IDA_INSTALL_DIRS[sys.platform][ida_version]):
-                    self.ida = ida_version
+                    self.ida_version = ida_version
+                    self.announce("[IDA PLUGIN INSTALL] No ida version provided, using default version : %s" % self.ida, level=distutils.log.ERROR)
                     break
 
-            print("[IDA PLUGIN INSTALL] No ida version provided, using default version : %s" % self.ida)
+            
 
-        assert self.ida in IDA_INSTALL_DIRS[sys.platform].keys(), 'Supported IDA on this platform : %s' % IDA_INSTALL_DIRS[sys.platform].keys()
+        assert self.ida_version in IDA_INSTALL_DIRS[sys.platform].keys(), 'Supported IDA on this platform : %s' % IDA_INSTALL_DIRS[sys.platform].keys()
+        install.finalize_options(self)
 
     def install_dependencies(self, dist, install_dir):
         # type:  (distutils.core.install, setuptools.dist.Distribution, str) -> void
@@ -79,8 +86,8 @@ class IdaPluginInstallCommand(install):
 
         for dependency in dist.install_requires:
             self.announce("[IDA PLUGIN INSTALL] installing dependency %s -> %s" % (dependency, install_dir), level=distutils.log.INFO)
-
-            if not dist.dry_run:
+            
+            if not self.dry_run:
                 pip.main(['install', '-t', install_dir, "--ignore-installed" ,  dependency])
 
     def install_packages(self, dist, install_dir):
@@ -90,7 +97,7 @@ class IdaPluginInstallCommand(install):
         for package in dist.packages:
             self.announce("[IDA PLUGIN INSTALL] copy package %s -> %s" % (package, install_dir), level=distutils.log.INFO)
 
-            if not dist.dry_run:
+            if not self.dry_run:
                 self.copy_tree(package, os.path.join(install_dir, package))
 
     def install_plugins(self, dist, install_dir):
@@ -101,16 +108,24 @@ class IdaPluginInstallCommand(install):
         for plugin in ida_plugins:
             self.announce("[IDA PLUGIN INSTALL] copy plugin %s -> %s" % (plugin, install_dir), level=distutils.log.INFO)
 
-            if not dist.dry_run:
+            if not self.dry_run:
                 self.copy_file(plugin,install_dir)
 
     def run(self, *args, **kwargs):
         """ Install ida plugins routine """
                 
         dist = self.distribution  # type: setuptools.dist.Distribution
-        install_dir = IDA_INSTALL_DIRS[sys.platform][self.ida]
 
+        # Custom install script
+        if self.ida:
+            install_dir = self.root # respect user-override install dir
+            if not install_dir:     # otherwise return the ida install dir
+                install_dir = IDA_INSTALL_DIRS[sys.platform][self.ida_version]
         
-        self.install_dependencies(dist, install_dir)
-        self.install_packages(dist, install_dir)
-        self.install_plugins(dist, install_dir)
+            if self.ida_install_deps:
+                self.install_dependencies(dist, install_dir)
+
+            self.install_packages(dist, install_dir)
+            self.install_plugins(dist, install_dir)
+
+        install.run(self)
