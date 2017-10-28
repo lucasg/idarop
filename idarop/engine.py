@@ -108,112 +108,181 @@ class IdaRopSearch():
         # Iterate over segments in the module
         # BUG: Iterating over all loaded segments is more stable than looking up by address
         for n in self.segments:
-            seg = idaapi.getnseg(n)
+            segment = idaapi.getnseg(n)
 
             # Locate executable segments in a selected modules
             # NOTE: Each module may have multiple executable segments
-            if seg and seg.perm & idaapi.SEGPERM_EXEC:
-               #seg.startEA >= m.addr and seg.endEA <= (m.addr + m.size) and \
+            if segment and segment.perm & idaapi.SEGPERM_EXEC:
                
-
                 #######################################################
                 # Search for ROP gadgets
-                if self.searchRop:
-
-                    #Search all instances of RETN 
-                    ea = seg.startEA
-                    while True:
-                        ea = idaapi.find_binary(ea + 1, seg.endEA, "C3", 16, idaapi.SEARCH_DOWN)
-                        if ea == idaapi.BADADDR: break
-                        self.retns.append( (ea))#, m.file))
-
-                    # Search all instances of RETN imm16
-                    ea = seg.startEA
-                    while True:
-                        ea = idaapi.find_binary(ea + 1, seg.endEA, "C2", 16, idaapi.SEARCH_DOWN)
-                        if ea == idaapi.BADADDR: break
-
-                        # Read imm16 value and filter large values
-                        retn_imm16 = idc.Word(ea + 1)
-                        if retn_imm16 <= self.maxRetnImm:
-
-                            self.retns.append( (ea))#, m.file))
+                self.search_rop_gadgets(segment, ret_preamble = 0xc3 ) # RETN 
+                self.search_rop_gadgets(segment, ret_preamble = 0xcb ) # RETF
+                self.search_rop_gadgets(segment, ret_preamble = 0xc2 ) # RETN imm16
+                self.search_rop_gadgets(segment, ret_preamble = 0xca ) # RETN imm16
+                self.search_rop_gadgets(segment, ret_preamble = 0xf2c3 ) # MPX RETN 
+                self.search_rop_gadgets(segment, ret_preamble = 0xf2c2 ) # MPX RETN imm16
 
                 #######################################################
                 # Search for JOP gadgets
-                if self.searchJop:
-
-                    # Search all instances of JMP reg (FF /4) and CALL reg (FF /2)
-                    ea = seg.startEA
-                    while True:
-                        ea = idaapi.find_binary(ea + 1, seg.endEA, "FF", 16, idaapi.SEARCH_DOWN)
-                        if ea == idaapi.BADADDR: break
-
-                        # Read possible ModR/M, SIB, and IMM8/IMM32 bytes
-                        jop = idc.GetManyBytes(ea + 1, 0x6)
-
-                        ###################################################
-                        # JMP/CALL reg
-                        if jop[0] in ["\xe0","\xe1","\xe2","\xe3","\xe4","\xe5","\xe6","\xe7",
-                                      "\xd0","\xd1","\xd2","\xd3","\xd4","\xd5","\xd6","\xd7"]:
-                            self.retns.append( (ea ))#m.file))
-
-                        ###################################################
-                        # JMP/CALL [reg] no SIB
-                        # NOTE: Do not include pure [disp] instruction.
-
-                        # JMP/CALL [reg] no *SP,*BP
-                        elif jop[0] in ["\x20","\x21","\x22","\x23","\x26","\x27", 
-                                        "\x10","\x11","\x12","\x13","\x16","\x17"]:
-                            self.retns.append( (ea ))#m.file))
-
-                        # JMP/CALL [reg + imm8] no *SP
-                        elif jop[0] in ["\x60","\x61","\x62","\x63","\x65","\x66","\x67",
-                                        "\x50","\x51","\x52","\x53","\x55","\x56","\x57"]:
-                            jop_imm8 = jop[1]
-                            jop_imm8 = unpack("b", jop_imm8)[0] # signed
-
-                            if jop_imm8 <= self.maxJopImm:
-                                self.retns.append( (ea ))#m.file))
-
-
-                        # JMP/CALL [reg + imm32] no *SP
-                        elif jop[0] in ["\xa0","\xa1","\xa2","\xa3","\xa5","\xa6","\xa7",
-                                        "\x90","\x91","\x92","\x93","\x95","\x96","\x97"]:
-                            jop_imm32 = jop[1:5]
-                            jop_imm32 = unpack("<i", jop_imm32)[0] # signed
-
-                            if jop_imm32 <= self.maxJopImm:
-                                self.retns.append( (ea ))#m.file))
-
-                        ###################################################
-                        # JMP/CALL [reg] with SIB
-                        # NOTE: Do no include pure [disp] instructions in SIB ([*] - none)
-                        elif (jop[0] in ["\x24","\x64","\xa4"] and not jop[1] in ["\x25","\x65","\xad","\xe5"]) or \
-                             (jop[0] in ["\x14","\x54","\x94"] and not jop[1] in ["\x25","\x65","\xad","\xe5"]):
-
-                             # Check for displacement
-                            if jop[0] in ["\x64","\x54"]:
-                                jop_imm8 = jop[2]
-                                jop_imm8 = unpack("b", jop_imm8)[0] # signed
-
-                                if jop_imm8 <= self.maxJopImm:
-                                    self.retns.append( (ea ))#m.file))
-
-
-                            elif jop[0] in ["\xa4","\x94"]:
-                                jop_imm32 = jop[2:6]
-                                jop_imm32 = unpack("<i", jop_imm32)[0] # signed
-
-                                if jop_imm32 <= self.maxJopImm:
-                                    self.retns.append( (ea ))#m.file))
-
-
-                            else:
-                                self.retns.append( (ea ))#m.file))
+                self.search_job_gadgets(segment, jump_preamble = 0xff )
+                self.search_job_gadgets(segment, jump_preamble = 0xf2ff ) # MPX
+                
+                #######################################################
+                # Search for SYS gadgets
+                self.search_sys_gadgets(segment)
 
         print("[IdaRopSearch] Found %d returns" % len(self.retns))
 
+
+    def is_job_gadget(self, jop):
+        """ jump oriented gadget predicate """
+
+        ###################################################
+        # JMP/CALL reg
+        if jop[0] in ["\xe0","\xe1","\xe2","\xe3","\xe4","\xe5","\xe6","\xe7",
+                      "\xd0","\xd1","\xd2","\xd3","\xd4","\xd5","\xd6","\xd7"]:
+            return True
+
+        ###################################################
+        # JMP/CALL [reg] no SIB
+        # NOTE: Do not include pure [disp] instruction.
+
+        # JMP/CALL [reg] no *SP,*BP
+        elif jop[0] in ["\x20","\x21","\x22","\x23","\x26","\x27", 
+                        "\x10","\x11","\x12","\x13","\x16","\x17"]:
+            return True
+
+        # JMP/CALL [reg + imm8] no *SP
+        elif jop[0] in ["\x60","\x61","\x62","\x63","\x65","\x66","\x67",
+                        "\x50","\x51","\x52","\x53","\x55","\x56","\x57"]:
+            jop_imm8 = jop[1]
+            jop_imm8 = unpack("b", jop_imm8)[0] # signed
+
+            if jop_imm8 <= self.maxJopImm:
+                return True
+
+
+        # JMP/CALL [reg + imm32] no *SP
+        elif jop[0] in ["\xa0","\xa1","\xa2","\xa3","\xa5","\xa6","\xa7",
+                        "\x90","\x91","\x92","\x93","\x95","\x96","\x97"]:
+            jop_imm32 = jop[1:5]
+            jop_imm32 = unpack("<i", jop_imm32)[0] # signed
+
+            if jop_imm32 <= self.maxJopImm:
+                return True
+
+        ###################################################
+        # JMP/CALL [reg] with SIB
+        # NOTE: Do no include pure [disp] instructions in SIB ([*] - none)
+        elif (jop[0] in ["\x24","\x64","\xa4"] and not jop[1] in ["\x25","\x65","\xad","\xe5"]) or \
+             (jop[0] in ["\x14","\x54","\x94"] and not jop[1] in ["\x25","\x65","\xad","\xe5"]):
+
+             # Check for displacement
+            if jop[0] in ["\x64","\x54"]:
+                jop_imm8 = jop[2]
+                jop_imm8 = unpack("b", jop_imm8)[0] # signed
+
+                if jop_imm8 <= self.maxJopImm:
+                    return True
+
+
+            elif jop[0] in ["\xa4","\x94"]:
+                jop_imm32 = jop[2:6]
+                jop_imm32 = unpack("<i", jop_imm32)[0] # signed
+
+                if jop_imm32 <= self.maxJopImm:
+                    return True
+
+
+            else:
+                return True
+
+        return False
+
+    def is_sys_gadget(self, sys_op):
+        """ syscall oriented gadget predicate """
+
+        if sys_op[0] in [
+            b"\xcd\x80",                         # int 0x80
+            b"\x0f\x34",                         # sysenter
+            b"\x0f\x05",                         # syscall
+            b"\x65\xff\x15\x10\x00\x00\x00",     # call DWORD PTR gs:0x10
+            b"\xcd\x80\xc3",                     # int 0x80 ; ret
+            b"\x0f\x34\xc3",                     # sysenter ; ret
+            b"\x0f\x05\xc3",                     # syscall ; ret
+            b"\x65\xff\x15\x10\x00\x00\x00\xc3", # call DWORD PTR gs:0x10 ; ret
+        ]:
+            return True
+
+        return False
+
+    def search_job_gadgets(self, segment, jump_preamble = 0xFF):
+        """ Search for JMP/J(.*) jump gadgets """
+
+        # Nothing to do if the option is not set
+        if not self.searchJop:
+            return
+
+        # Search all instances of JMP reg (FF /4) and CALL reg (FF /2)
+        ea = segment.startEA
+        while True:
+
+            ea = idaapi.find_binary(ea + 1, segment.endEA, "%X" % jump_preamble, 16, idaapi.SEARCH_DOWN)
+            if ea == idaapi.BADADDR: 
+                break
+
+            # Read possible ModR/M, SIB, and IMM8/IMM32 bytes
+            jop = idc.GetManyBytes(ea + 1, self.rop.maxRopSize)
+
+            if self.is_job_gadget(jop):
+                self.retns.append((ea))
+
+    def search_sys_gadgets(self, segment, jump_preamble = 0xFF):
+        """ Search for SYS jump gadgets """
+
+        # Nothing to do if the option is not set
+        if not self.searchSys:
+            return
+
+        # Search all instances of JMP reg (FF /4) and CALL reg (FF /2)
+        ea = segment.startEA
+        while True:
+
+            ea = idaapi.find_binary(ea + 1, segment.endEA, "%X" % jump_preamble, 16, idaapi.SEARCH_DOWN)
+            if ea == idaapi.BADADDR: 
+                break
+
+            # Read possible ModR/M, SIB, and IMM8/IMM32 bytes
+            sys_op = idc.GetManyBytes(ea + 1, self.rop.maxRopSize)
+
+            if self.is_sys_gadget(jop):
+                self.retns.append((ea))
+
+    def search_rop_gadgets(self, segment, ret_preamble = 0xc3):
+        """ Search for rop gadgets """
+
+        # Nothing to do if the option is not set
+        if not self.searchRop:
+            return
+            
+        ea = segment.startEA
+        while True:
+
+            ea = idaapi.find_binary(ea + 1, segment.endEA, "%X" % ret_preamble, 16, idaapi.SEARCH_DOWN)
+            if ea == idaapi.BADADDR: 
+                break
+
+            if ret_preamble in [ 0xc2, 0xca, 0xf2c2]:
+
+                 # Read imm16 value and filter large values
+                retn_imm16 = idc.Word(ea + 1)
+                if retn_imm16 <= self.maxRetnImm:
+                    self.retns.append((ea))
+            else:
+                self.retns.append( (ea))
+
+            
 
     def search_gadgets(self):
 
@@ -872,6 +941,7 @@ class IdaRopEngine():
             # Gadget search values
             self.rop.searchRop     = form.cRopSearch.checked
             self.rop.searchJop     = form.cJopSearch.checked
+            self.rop.searchSys     = False # TODO : implement check box
 
             # Search for returns and ROP gadgets
             self.rop.search_retns()

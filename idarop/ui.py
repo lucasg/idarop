@@ -56,7 +56,7 @@ Unicode Table    <ANSI:{rUnicodeANSI}><OEM:{rUnicodeOEM}><UTF7:{rUnicodeUTF7}><U
                 'intMaxJopImm'    : Form.NumericInput(swidth=4,tp=Form.FT_HEX,value=self.engine.rop.maxJopImm),
                 'strBadChars'     : Form.StringInput(swidth=92,tp=Form.FT_ASCII),
                 'radUnicode'      : Form.RadGroupControl(("rUnicodeANSI","rUnicodeOEM","rUnicodeUTF7","rUnicodeUTF8")),
-                'strBadMnems'     : Form.StringInput(swidth=92,tp=Form.FT_ASCII,value="leave, int, into, enter, syscall, sysenter, sysexit, sysret, in, out, loop, loope, loopne, lock, rep, repe, repz, repne, repnz"),
+                'strBadMnems'     : Form.StringInput(swidth=92,tp=Form.FT_ASCII,value="into, in, out, loop, loope, loopne, lock, rep, repe, repz, repne, repnz"),
                 'FormChangeCb'    : Form.FormChangeCb(self.OnFormChange),
             })
 
