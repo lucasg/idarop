@@ -6,6 +6,7 @@ import idc
 
 # Python libraries
 import binascii
+import sys
 from struct import pack, unpack
 from collections import namedtuple
 
@@ -226,96 +227,109 @@ class IdaRopSearch():
         breakFlag = False
 
         # Show wait dialog
-        if not self.debug: idaapi.show_wait_box("Searching gadgets: 00 %%")
+        if not self.debug: 
+            idaapi.show_wait_box("Searching gadgets: 00 %")
 
-        for ea_end in self.retns:
+        try :
 
-            # Flush the gadgets cache for each new retn pointer
-            self.gadgets_cache = dict()
+        
+            for ea_end in self.retns:
 
-            # Flush memory cache for each new retn pointer
-            self.dbg_mem_cache = None
+                # Flush the gadgets cache for each new retn pointer
+                self.gadgets_cache = dict()
 
-            # CACHE: It is faster to read as much memory in one blob than to make incremental reads backwards.
-            #        Try to read and cache self.maxRopOffset bytes back. In cases where it is not possible,
-            #        then simply try to read the largest chunk.
-            
-            # NOTE: Read a bit extra to cover correct decoding of RETN, RETN imm16, CALL /2, and JMP /4 instructions.
-            # Bug on end of segments : self.dbg_read_extra must be 0
-            dbg_read_extra = self.dbg_read_extra
-            seg_start, seg_end = idc.SegStart(ea_end), idc.SegEnd(ea_end)
-            if ea_end + dbg_read_extra > seg_end:
-                dbg_read_extra = 0
+                # Flush memory cache for each new retn pointer
+                self.dbg_mem_cache = None
 
-            for i in range(self.maxRopOffset):
-                self.dbg_mem_cache = idc.GetManyBytes(ea_end - self.maxRopOffset + i, self.maxRopOffset - i + self.dbg_read_extra)
-                if self.dbg_mem_cache != None:
-                    break
+                # CACHE: It is faster to read as much memory in one blob than to make incremental reads backwards.
+                #        Try to read and cache self.maxRopOffset bytes back. In cases where it is not possible,
+                #        then simply try to read the largest chunk.
+                
+                # NOTE: Read a bit extra to cover correct decoding of RETN, RETN imm16, CALL /2, and JMP /4 instructions.
+                # Bug on end of segments : self.dbg_read_extra must be 0
+                dbg_read_extra = self.dbg_read_extra
+                seg_start, seg_end = idc.SegStart(ea_end), idc.SegEnd(ea_end)
+                if ea_end + dbg_read_extra > seg_end:
+                    dbg_read_extra = 0
 
-            # Error while reading memory (Ida sometimes does not want to read uninit data)
-            if self.dbg_mem_cache == None:
-                for backward_size in range(self.maxRopOffset, 0, -1):
-                    self.dbg_mem_cache = idc.GetManyBytes(ea_end - backward_size, backward_size)
+                for i in range(self.maxRopOffset):
+                    self.dbg_mem_cache = idc.GetManyBytes(ea_end - self.maxRopOffset + i, self.maxRopOffset - i + self.dbg_read_extra)
                     if self.dbg_mem_cache != None:
                         break
 
-            # Big problem ahead
-            if self.dbg_mem_cache == None:
-                print("[Ida Search Error] could not read bytes [0x%x, 0x%x]" % (ea_end - self.maxRopOffset + i, ea_end - self.maxRopOffset + i + self.maxRopOffset - i + self.dbg_read_extra))
-            
-            # Search all possible gadgets up to maxoffset bytes back
-            # NOTE: Try all byte combinations to capture longer/more instructions
-            #       even with bad bytes in the middle.
-            for i in range(1, len(self.dbg_mem_cache) - self.dbg_read_extra):
+                # Error while reading memory (Ida sometimes does not want to read uninit data)
+                if self.dbg_mem_cache == None:
+                    for backward_size in range(self.maxRopOffset, 0, -1):
+                        self.dbg_mem_cache = idc.GetManyBytes(ea_end - backward_size, backward_size)
+                        if self.dbg_mem_cache != None:
+                            break
 
-                ea = ea_end - i
-
-                # Try to build a gadget at the pointer
-                gadget = self.build_gadget(ea, ea_end)
+                # Big problem ahead
+                if self.dbg_mem_cache == None:
+                    print("[Ida Search Error] could not read bytes [0x%x, 0x%x]" % (ea_end - self.maxRopOffset + i, ea_end - self.maxRopOffset + i + self.maxRopOffset - i + self.dbg_read_extra))
                 
-                # Successfully built the gadget
-                if gadget:
+                # Search all possible gadgets up to maxoffset bytes back
+                # NOTE: Try all byte combinations to capture longer/more instructions
+                #       even with bad bytes in the middle.
+                for i in range(1, len(self.dbg_mem_cache) - self.dbg_read_extra):
 
-                    # Filter gadgets with too many instruction
-                    if gadget.size > self.maxRopSize: 
-                        break
+                    ea = ea_end - i
 
-                    # Append newly built gadget
-                    self.gadgets.append(gadget)
-                    self.gadgets_cache[ea] = gadget
+                    # Try to build a gadget at the pointer
+                    gadget = self.build_gadget(ea, ea_end)
+                    
+                    # Successfully built the gadget
+                    if gadget:
 
-                    # Exceeded maximum number of gadgets
-                    if self.maxRops and len(self.gadgets) >= self.maxRops:
+                        # Filter gadgets with too many instruction
+                        if gadget.size > self.maxRopSize: 
+                            break
+
+                        # Append newly built gadget
+                        self.gadgets.append(gadget)
+                        self.gadgets_cache[ea] = gadget
+
+                        # Exceeded maximum number of gadgets
+                        if self.maxRops and len(self.gadgets) >= self.maxRops:
+                            breakFlag = True
+                            print("[Ida Rop] Maximum number of gadgets exceeded.")
+                            break
+                    else:
+                        self.gadgets_cache[ea] = None
+
+                    if breakFlag or idaapi.wasBreak():
                         breakFlag = True
-                        print("[Ida Rop] Maximum number of gadgets exceeded.")
                         break
-                else:
-                    self.gadgets_cache[ea] = None
 
+
+                # Canceled
+                # NOTE: Only works when started from GUI not script.
                 if breakFlag or idaapi.wasBreak():
                     breakFlag = True
+                    print ("[IdaRopSearch] Canceled.")
                     break
 
+                # Progress report
+                if not self.debug and count_curr >= count_notify:
 
-            # Canceled
-            # NOTE: Only works when started from GUI not script.
-            if breakFlag or idaapi.wasBreak():
-                breakFlag = True
-                print ("[IdaRopSearch] Canceled.")
-                break
+                    # NOTE: Need to use %%%% to escape both Python and IDA's format strings
+                    percent_progression = count_curr*100/count_total
+                    progression_str = """Searching gadgets: {progression:02d} %""".format(progression = percent_progression)
+                    idaapi.replace_wait_box(progression_str) 
 
-            # Progress report
-            if not self.debug and count_curr >= count_notify:
+                    count_notify += 0.10 * count_total
 
-                # NOTE: Need to use %%%% to escape both Python and IDA's format strings
-                idaapi.replace_wait_box("Searching gadgets: %02d%%%%" % (count_curr*100/count_total) ) 
+                count_curr += 1            
 
-                count_notify += 0.10 * count_total
+            print ("[IdaRopSearch] Found %d gadgets." % len(self.gadgets))
+        except:
+            print ("[IdaRopSearch] Exception raised while search for gadgets : %s." % sys.exc_info())
+            pass
 
-            count_curr += 1            
+        finally:
 
-        print ("[IdaRopSearch] Found %d gadgets." % len(self.gadgets))
-        if not self.debug: idaapi.hide_wait_box()
+            if not self.debug:
+                idaapi.hide_wait_box()
 
 
     # Attempt to build a gadget at the provided start address
