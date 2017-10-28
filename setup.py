@@ -14,7 +14,6 @@ setup(
     url = "https://github.com/lucasg/idarop",
     
     install_requires = [
-        'ida-netnode'
     ],
 
     packages = find_packages(),
