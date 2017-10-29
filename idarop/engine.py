@@ -941,7 +941,7 @@ class IdaRopEngine():
             # Gadget search values
             self.rop.searchRop     = form.cRopSearch.checked
             self.rop.searchJop     = form.cJopSearch.checked
-            self.rop.searchSys     = False # TODO : implement check box
+            self.rop.searchSys     = form.cSysSearch.checked 
 
             # Search for returns and ROP gadgets
             self.rop.search_retns()

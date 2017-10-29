@@ -39,16 +39,18 @@ Search ROP gadgets
 
 <Bad Chars        :{strBadChars}>     
 Unicode Table    <ANSI:{rUnicodeANSI}><OEM:{rUnicodeOEM}><UTF7:{rUnicodeUTF7}><UTF8:{rUnicodeUTF8}>{radUnicode}>
-<Bad Instructions :{strBadMnems}>
-<Max gadget size  :{intMaxRopSize}>     Other settings :
-<Max gadget offset:{intMaxRopOffset}>          <Allow conditional jumps:{cRopAllowJcc}>
-<Max RETN imm16   :{intMaxRetnImm}>            <Do not allow bad bytes:{cRopNoBadBytes}>
-<Max JOP imm8/32  :{intMaxJopImm}>             <Search for ROP gadgets:{cRopSearch}>
-<Max gadgets      :{intMaxRops}>               <Search for JOP gadgets:{cJopSearch}>{ropGroup}>
- 
+
+<Max gadget size  :{intMaxRopSize}>      
+<Max gadget offset:{intMaxRopOffset}>       <Search for ROP gadgets:{cRopSearch}>
+<Max RETN imm16   :{intMaxRetnImm}>         <Search for JOP gadgets:{cJopSearch}>
+<Max gadgets      :{intMaxRops}>            <Search for SYS gadgets:{cSysSearch}>{gadgetGroup}>
+
+Others settings:
+<Allow conditional jumps:{cRopAllowJcc}> <Do not allow bad bytes:{cRopNoBadBytes}>{ropGroup}>
 """, {
                 'cEChooser'       : Form.EmbeddedChooserControl(self.segments, swidth=110),
-                'ropGroup'        : Form.ChkGroupControl(('cRopAllowJcc','cRopNoBadBytes','cRopSearch','cJopSearch')),
+                'ropGroup'        : Form.ChkGroupControl(('cRopAllowJcc','cRopNoBadBytes')),
+                'gadgetGroup'     : Form.ChkGroupControl(('cRopSearch','cJopSearch','cSysSearch')),
                 'intMaxRopSize'   : Form.NumericInput(swidth=4,tp=Form.FT_DEC,value=self.engine.rop.maxRopSize),
                 'intMaxRopOffset' : Form.NumericInput(swidth=4,tp=Form.FT_DEC,value=self.engine.rop.maxRopOffset),
                 'intMaxRops'      : Form.NumericInput(swidth=4,tp=Form.FT_DEC,value=self.engine.rop.maxRops),
@@ -82,6 +84,7 @@ Unicode Table    <ANSI:{rUnicodeANSI}><OEM:{rUnicodeOEM}><UTF7:{rUnicodeUTF7}><U
             # Enable both ROP and JOP search by default
             self.SetControlValue(self.cRopSearch, True)
             self.SetControlValue(self.cJopSearch, True)
+            self.SetControlValue(self.cSysSearch, False)
 
             # Skip bad instructions by default
             self.SetControlValue(self.cRopNoBadBytes, True)
