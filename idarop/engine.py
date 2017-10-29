@@ -233,7 +233,7 @@ class IdaRopSearch():
                 break
 
             # Read possible ModR/M, SIB, and IMM8/IMM32 bytes
-            jop = idc.GetManyBytes(ea + 1, self.rop.maxRopSize)
+            jop = idc.GetManyBytes(ea + 1, self.maxRopSize)
 
             if self.is_job_gadget(jop):
                 self.retns.append((ea))
@@ -254,7 +254,7 @@ class IdaRopSearch():
                 break
 
             # Read possible ModR/M, SIB, and IMM8/IMM32 bytes
-            sys_op = idc.GetManyBytes(ea + 1, self.rop.maxRopSize)
+            sys_op = idc.GetManyBytes(ea + 1, self.maxRopSize)
 
             if self.is_sys_gadget(jop):
                 self.retns.append((ea))
