@@ -13,7 +13,7 @@ def ida_install_dir_windows(version, *args):
     IDA_INSTALL_DIR_WINDOWS = {
         '6.8' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.8", "plugins"),
         '6.9' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.9", "plugins"),
-        '7.0' : os.path.join(os.environ.get("ProgramFiles", "KeyError"), "IDA 7.0", "plugins"),
+        '7.0' : os.path.join(os.environ.get("ProgramW6432", "KeyError"), "IDA 7.0", "plugins"),
     }
 
     return IDA_INSTALL_DIR_WINDOWS[version]
