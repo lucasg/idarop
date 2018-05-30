@@ -1,9 +1,21 @@
 """ IDA ROP view plugin UI functions and classes """
 
+# Python libraries
+import os
+import csv
+import logging
+
 # IDA libraries
 import idaapi
 import idc
-from idaapi import Form, Choose2
+from idaapi import Form, Choose, Choose2
+
+if idaapi.IDA_SDK_VERSION <= 695:
+    pass    
+if idaapi.IDA_SDK_VERSION >= 700:
+    import ida_idaapi
+else:
+    pass
 
 # IDA plugin
 try :
@@ -12,11 +24,6 @@ try :
 except ImportError as ie:
     netnode_package =  False
     
-
-
-# Python libraries
-import os
-import csv
 
 from .engine import IdaRopEngine, IdaRopSearch, Gadget
 
@@ -28,8 +35,8 @@ class IdaRopForm(Form):
 
         self.engine = idaropengine
         self.select_list = select_list
+        self.segments = SegmentView(self.engine)
 
-        self.segments = SegmentView(self.engine, embedded=True)
 
         Form.__init__(self, 
 r"""BUTTON YES* Search
@@ -96,34 +103,39 @@ Others settings:
         return 1
 
 ###############################################################################
-class SegmentView(Choose2):
+class SegmentView(Choose):
 
-    def __init__(self, idarop, embedded = False):
+    def __init__(self, idarop):
+
         self.idarop = idarop
 
-        Choose2.__init__(self, "Segments",
-                         [ ["Name",   13 | Choose2.CHCOL_PLAIN],
-                           ["Start",  13 | Choose2.CHCOL_HEX], 
-                           ["End",    10 | Choose2.CHCOL_HEX], 
-                           ["Size",   10 | Choose2.CHCOL_HEX],
-                           ["R",       1 | Choose2.CHCOL_PLAIN],
-                           ["W",       1 | Choose2.CHCOL_PLAIN], 
-                           ["X",       1 | Choose2.CHCOL_PLAIN],
-                           ["Class",   8 | Choose2.CHCOL_PLAIN], 
+        Choose.__init__(self, "Segments",
+                         [ ["Name",   13 | Choose.CHCOL_PLAIN],
+                           ["Start",  13 | Choose.CHCOL_HEX], 
+                           ["End",    10 | Choose.CHCOL_HEX], 
+                           ["Size",   10 | Choose.CHCOL_HEX],
+                           ["R",       1 | Choose.CHCOL_PLAIN],
+                           ["W",       1 | Choose.CHCOL_PLAIN], 
+                           ["X",       1 | Choose.CHCOL_PLAIN],
+                           ["Class",   8 | Choose.CHCOL_PLAIN], 
                          ],
-                         flags = Choose2.CH_MULTI,  # Select multiple modules
-                         embedded=embedded)
+                         flags = Choose.CH_MULTI,  # Select multiple modules
+                         embedded=True)
 
         self.icon = 150
 
         # Items for display
         self.items = list()
 
+        # Selected items
+        self.select_list = list()
+
         # Initialize/Refresh the view
         self.refreshitems()
 
-        # Selected items
-        self.select_list = list()
+    def OnSelectionChange(self, selection_list):
+        # "Temporary" crutch since GetEmbSelection() does not work for Ida 7.0
+        self.select_list = selection_list
 
     def show(self):
         # Attempt to open the view
@@ -151,10 +163,12 @@ class SegmentView(Choose2):
 
     def OnGetIcon(self, n):
 
+
         if not len(self.items) > 0:
             return -1
 
         segment = self.idarop.list_segments()[n]
+
         if segment.x : # Exec Seg
             return 61
         else:
@@ -402,8 +416,9 @@ class IdaRopManager():
         if ok == 1:
             # reset previous results
             self.defered_loading = False
-
-            ret = self.engine.process_rop(f, f.segments.GetEmbSelection())
+            
+            select_list = f.segments.select_list
+            ret = self.engine.process_rop(f, select_list)
 
             if ret:
                 self.show_rop_view()
