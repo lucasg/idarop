@@ -342,7 +342,7 @@ class IdaRopSearch():
 
                 # Big problem ahead
                 if self.dbg_mem_cache == None:
-                    print("[Ida Search Error] could not read bytes [0x%x, 0x%x]" % (ea_end - self.maxRopOffset + i, ea_end - self.maxRopOffset + i + self.maxRopOffset - i + self.dbg_read_extra))
+                    logging.error("[Ida Search Error] could not read bytes [0x%x, 0x%x]" % (ea_end - self.maxRopOffset + i, ea_end - self.maxRopOffset + i + self.maxRopOffset - i + self.dbg_read_extra))
                 
                 # Search all possible gadgets up to maxoffset bytes back
                 # NOTE: Try all byte combinations to capture longer/more instructions
@@ -399,7 +399,7 @@ class IdaRopSearch():
 
             print ("[IdaRopSearch] Found %d gadgets." % len(self.gadgets))
         except:
-            print ("[IdaRopSearch] Exception raised while search for gadgets : %s." % sys.exc_info())
+            logging.error ("[IdaRopSearch] Exception raised while search for gadgets : %s." % sys.exc_info())
             pass
 
         finally:
@@ -863,7 +863,7 @@ class IdaRopEngine():
         self.rop  = None
 
         if not idaapi.ph.id == idaapi.PLFM_386:
-            print ("[idasploiter] Only Intel 80x86 processors are supported.")
+            logging.error ("[IdaRop] Only Intel 80x86 processors are supported.")
             sys.exit(1)
 
         # Check if processor supports 64-bit addressing
