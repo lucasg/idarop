@@ -1,15 +1,22 @@
 """ IDA ROP view plugin rop search engine and processing """
 
+# Python libraries
+import binascii
+import sys
+import logging
+from struct import pack, unpack
+from collections import namedtuple
+
 # IDA libraries
 import idaapi
 import idc
 
-# Python libraries
-import binascii
-import sys
-from struct import pack, unpack
-from collections import namedtuple
-
+if idaapi.IDA_SDK_VERSION <= 695:
+    from idaapi import get_segm_qty, getnseg
+if idaapi.IDA_SDK_VERSION >= 700:
+    from ida_segment import get_segm_qty, getnseg
+else:
+    pass
 
 ###############################################################################
 # Data Structure class
@@ -108,7 +115,7 @@ class IdaRopSearch():
         # Iterate over segments in the module
         # BUG: Iterating over all loaded segments is more stable than looking up by address
         for n in self.segments:
-            segment = idaapi.getnseg(n)
+            segment = getnseg(n)
 
             # Locate executable segments in a selected modules
             # NOTE: Each module may have multiple executable segments
@@ -871,28 +878,38 @@ class IdaRopEngine():
             self.pack_format_be = ">I"
             self.pack_format_le = "<I"
 
-
     def list_segments(self):
         """ Return the list of segments in the current binary and their characteristics """
+        
         self.segments = list()
         self.segments_idx = list()
 
-        for n in xrange(idaapi.get_segm_qty()):
-            seg = idaapi.getnseg(n)
-            if seg:
-                segentry = SegmentEntry(
-                    name = idaapi.get_segm_name(seg),
-                    start = seg.startEA,
-                    end = seg.endEA,
-                    size = seg.size(),
-                    r = (seg.perm & idaapi.SEGPERM_READ) >> 2,
-                    w = (seg.perm & idaapi.SEGPERM_WRITE) >> 1,
-                    x = (seg.perm & idaapi.SEGPERM_EXEC),
-                    segclass = idaapi.get_segm_class(seg)
-                )
 
-                self.segments.append(segentry) 
-                self.segments_idx.append(n)
+        for n in xrange(get_segm_qty()):
+            seg = getnseg(n)
+
+            if not seg: 
+                continue
+
+            # For some linux binaries
+            # Ida does not recognize the segment
+            # permissions (usually for plt)
+            if seg.perm == 0:
+                continue
+
+            segentry = SegmentEntry(
+                name = idaapi.get_segm_name(seg),
+                start = seg.startEA,
+                end = seg.endEA,
+                size = seg.size(),
+                r = (seg.perm & idaapi.SEGPERM_READ) >> 2,
+                w = (seg.perm & idaapi.SEGPERM_WRITE) >> 1,
+                x = (seg.perm & idaapi.SEGPERM_EXEC),
+                segclass = idaapi.get_segm_class(seg)
+            )
+
+            self.segments.append(segentry) 
+            self.segments_idx.append(n)
 
         return self.segments
 
@@ -902,7 +919,7 @@ class IdaRopEngine():
 
     def process_rop(self, form,  select_list = None):
         """ Look for rop gadgets using user-input search options """
-
+        
         # Clear previous results
         self.clear_rop_list()
         
