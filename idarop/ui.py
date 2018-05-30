@@ -342,6 +342,32 @@ class IdaRopView(Choose2):
         self.refreshitems()
 
 
+if idaapi.IDA_SDK_VERSION >= 700:
+    class SearchGadgetsHandler(idaapi.action_handler_t):
+            def __init__(self, manager):
+                idaapi.action_handler_t.__init__(self)
+                self._manager = manager
+
+            def activate(self, ctx):
+                self._manager.proc_rop()
+                return 1
+
+            def update(self, ctx):
+                return idaapi.AST_ENABLE_ALWAYS
+
+    class ListGadgetsHandler(idaapi.action_handler_t):
+            def __init__(self, manager):
+                idaapi.action_handler_t.__init__(self)
+                self._manager = manager
+
+            def activate(self, ctx):
+                self._manager.show_rop_view()
+                return 1
+
+            def update(self, ctx):
+                return idaapi.AST_ENABLE_ALWAYS
+else:
+    pass
 
 class IdaRopManager():
     """ Top-level object managing IDA Rop View plugin """
@@ -371,26 +397,69 @@ class IdaRopManager():
     def add_menu_items(self):
         """ Init additions to Ida's menu entries """
 
-        def add_menu_item_helper(self, menupath, name, hotkey, flags, pyfunc, args):
-            """ helper for adding a menu item  """
+        if idaapi.IDA_SDK_VERSION <= 695:
+            def add_menu_item_helper(self, menupath, name, hotkey, flags, pyfunc, args):
+                """ helper for adding a menu item  """
 
-            # add menu item and report on errors
-            addmenu_item_ctx = idaapi.add_menu_item(menupath, name, hotkey, flags, pyfunc, args)
-            if addmenu_item_ctx is None:
-                return 1
-            else:
-                self.addmenu_item_ctxs.append(addmenu_item_ctx)
-                return 0
+                # add menu item and report on errors
+                addmenu_item_ctx = idaapi.add_menu_item(menupath, name, hotkey, flags, pyfunc, args)
+                if addmenu_item_ctx is None:
+                    return 1
+                else:
+                    self.addmenu_item_ctxs.append(addmenu_item_ctx)
+                    return 0
 
-        if add_menu_item_helper(self, "Search/all error operands", "list rop gadgets...", "Ctrl+Shift+r", 1, self.proc_rop, None): return 1
-        if add_menu_item_helper(self, "View/Open subviews/Problems", "View rop gadgets...", "Shift+r", 1, self.show_rop_view, None): return 1
-        return 0
+            if add_menu_item_helper(self, "Search/all error operands", "list rop gadgets...", "Ctrl+Shift+r", 1, self.proc_rop, None): return 1
+            if add_menu_item_helper(self, "View/Open subviews/Problems", "View rop gadgets...", "Shift+r", 1, self.show_rop_view, None): return 1
+            return 0
+
+        elif idaapi.IDA_SDK_VERSION >= 700:
+            
+            search_gadgets_desc = idaapi.action_desc_t(
+                'idarop:searchgadgets',             
+                'search rop gadgets...',              
+                SearchGadgetsHandler(self),         
+                "Ctrl+Shift+r",                     
+                'search all gadgets available on this binary', 
+            ) 
+            idaapi.register_action(search_gadgets_desc)
+
+            idaapi.attach_action_to_menu(
+                'Search/IdaRop/',
+                'idarop:searchgadgets',
+                idaapi.SETMENU_APP
+            )
+
+            list_gadgets_desc = idaapi.action_desc_t(
+                'idarop:listgadgets',             
+                'list rop gadgets...',              
+                ListGadgetsHandler(self),         
+                "Shift+r",                     
+                'list all gadgets searched on this binary', 
+            ) 
+            idaapi.register_action(list_gadgets_desc)
+
+            idaapi.attach_action_to_menu(
+                'Search/IdaRop/',
+                'idarop:listgadgets',
+                idaapi.SETMENU_APP
+            )
+
+            return 0
+        else:
+            return 0
 
     
     def del_menu_items(self):
         """ Clear Ida Rop plugin menu entries """
-        for addmenu_item_ctx in self.addmenu_item_ctxs:
-            idaapi.del_menu_item(addmenu_item_ctx)
+        if idaapi.IDA_SDK_VERSION <= 695:
+            for addmenu_item_ctx in self.addmenu_item_ctxs:
+                idaapi.del_menu_item(addmenu_item_ctx)
+        elif idaapi.IDA_SDK_VERSION >= 700:
+            idaapi.detach_action_from_menu('Search/IdaRop/', 'idarop:listgadgets')
+            idaapi.detach_action_from_menu('Search/IdaRop/', 'idarop:searchgadgets')
+        else:
+            pass
 
     
     def show_rop_view(self):
