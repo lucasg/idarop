@@ -10,10 +10,12 @@ import idaapi
 import idc
 from idaapi import Form, Choose, Choose2
 
+# Choose2 has disappeared from IdaPython v7
 if idaapi.IDA_SDK_VERSION <= 695:
-    pass    
-if idaapi.IDA_SDK_VERSION >= 700:
+    from idaapi import Choose2 as SegmentChoose
+elif idaapi.IDA_SDK_VERSION >= 700:
     import ida_idaapi
+    from idaapi import Choose as SegmentChoose
 else:
     pass
 
@@ -103,23 +105,23 @@ Others settings:
         return 1
 
 ###############################################################################
-class SegmentView(Choose):
+class SegmentView(SegmentChoose):
 
     def __init__(self, idarop):
 
         self.idarop = idarop
 
-        Choose.__init__(self, "Segments",
-                         [ ["Name",   13 | Choose.CHCOL_PLAIN],
-                           ["Start",  13 | Choose.CHCOL_HEX], 
-                           ["End",    10 | Choose.CHCOL_HEX], 
-                           ["Size",   10 | Choose.CHCOL_HEX],
-                           ["R",       1 | Choose.CHCOL_PLAIN],
-                           ["W",       1 | Choose.CHCOL_PLAIN], 
-                           ["X",       1 | Choose.CHCOL_PLAIN],
-                           ["Class",   8 | Choose.CHCOL_PLAIN], 
+        SegmentChoose.__init__(self, "Segments",
+                         [ ["Name",   13 | SegmentChoose.CHCOL_PLAIN],
+                           ["Start",  13 | SegmentChoose.CHCOL_HEX], 
+                           ["End",    10 | SegmentChoose.CHCOL_HEX], 
+                           ["Size",   10 | SegmentChoose.CHCOL_HEX],
+                           ["R",       1 | SegmentChoose.CHCOL_PLAIN],
+                           ["W",       1 | SegmentChoose.CHCOL_PLAIN], 
+                           ["X",       1 | SegmentChoose.CHCOL_PLAIN],
+                           ["Class",   8 | SegmentChoose.CHCOL_PLAIN], 
                          ],
-                         flags = Choose.CH_MULTI,  # Select multiple modules
+                         flags = SegmentChoose.CH_MULTI,  # Select multiple modules
                          embedded=True)
 
         self.icon = 150
