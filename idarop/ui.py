@@ -510,16 +510,16 @@ class IdaRopManager():
         internal_repr = list()
         for item in self.engine.rop.gadgets:
 
-                address,ret_addres = item.address, item.ret_address
-                offset = "0x%x" % (address - idaapi.get_imagebase())
-                ret_offset = "0x%x" % (ret_addres - idaapi.get_imagebase())
+            address,ret_addres = item.address, item.ret_address
+            offset = "0x%x" % (address - idaapi.get_imagebase())
+            ret_offset = "0x%x" % (ret_addres - idaapi.get_imagebase())
 
-                internal_repr.append((offset, ret_offset))
+            internal_repr.append((offset, ret_offset))
 
-                if idaapi.wasBreak():
-                    cancel_flag = True
-                    print("[IdaRop] save internal db interrupted.")
-                    break
+            if idaapi.wasBreak():
+                cancel_flag = True
+                print("[IdaRop] save internal db interrupted.")
+                break
 
         # save only on success
         if not cancel_flag:
@@ -537,22 +537,22 @@ class IdaRopManager():
             return
 
         for item in internal_repr:
-                offset,ret_offset = item.split(':')
-                
-                # Reconstruct linear address based on binary base address and offset
-                address = int(offset, 16) + idaapi.get_imagebase()
-                ret_address = int(ret_offset, 16) + idaapi.get_imagebase()
+            offset,ret_offset = item.split(':')
+            
+            # Reconstruct linear address based on binary base address and offset
+            address = int(offset, 16) + idaapi.get_imagebase()
+            ret_address = int(ret_offset, 16) + idaapi.get_imagebase()
 
-                gadget = Gadget(
-                    address = address,
-                    ret_address =  ret_address,
-                    instructions = list(),
-                    opcodes = "",
-                    size = 0
-                )
+            gadget = Gadget(
+                address = address,
+                ret_address =  ret_address,
+                instructions = list(),
+                opcodes = "",
+                size = 0
+            )
 
-                self.engine.rop.gadgets.append(gadget)
+            self.engine.rop.gadgets.append(gadget)
 
-                if idaapi.wasBreak():
-                    print("[IdaRopLoad] Load csv file interrupted.")
-                    break
+            if idaapi.wasBreak():
+                print("[IdaRopLoad] Load csv file interrupted.")
+                break
