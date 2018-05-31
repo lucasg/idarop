@@ -1,14 +1,24 @@
+import os
+from io import open
 from setuptools import setup, find_packages
+
 from __ida_setup__ import IdaPluginInstallCommand
 from idarop import IDAROP_VERSION, IDAROP_DESCRIPTION
 
+
+# read the contents of README file
+package_directory = os.path.abspath(os.path.dirname(__file__))
+readme_path = os.path.join(package_directory, 'README.md')
+with open(readme_path, "r", encoding = 'utf-8') as f:
+    long_description = f.read()
 
 
 setup(
     name = 'idarop',
     version = IDAROP_VERSION,
     description = IDAROP_DESCRIPTION,
-    long_description = IDAROP_DESCRIPTION,
+    long_description=long_description,
+    long_description_content_type='text/markdown',
     author = "lucasg",
     author_email = "lucas.georges@outlook.com",
     url = "https://github.com/lucasg/idarop",
