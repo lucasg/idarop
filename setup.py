@@ -34,6 +34,8 @@ setup(
         'ida_plugins': ['plugins/idarop_plugin_t.py'],
     },
     
+    include_package_data =True,
+    
     # monkey patch install script for IDA plugin custom install
     cmdclass={'install': IdaPluginInstallCommand}   
 )
