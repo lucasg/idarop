@@ -92,11 +92,10 @@ class IdaPluginInstallCommand(install):
 
                 if os.path.exists(ida_install_dir):
                     self.ida_version = ida_version
-                    self.announce("[IDA PLUGIN INSTALL] No ida version provided, using default version : %s" % self.ida, level=distutils.log.ERROR)
+                    self.announce("[IDA PLUGIN INSTALL] No ida version provided, using default version : %s" % self.ida_version, level=distutils.log.ERROR)
                     break
 
             
-
         assert self.ida_version in IDA_SUPPORTED_VERSIONS, 'Supported IDA on this platform : %s' % IDA_SUPPORTED_VERSIONS
         install.finalize_options(self)
 
