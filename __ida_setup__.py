@@ -14,6 +14,7 @@ def ida_install_dir_windows(version, *args):
         '6.8' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.8", "plugins"),
         '6.9' : os.path.join(os.environ.get("ProgramFiles(x86)", "KeyError"), "IDA 6.9", "plugins"),
         '7.0' : os.path.join(os.environ.get("ProgramW6432", "KeyError"), "IDA 7.0", "plugins"),
+        '7.1' : os.path.join(os.environ.get("ProgramW6432", "KeyError"), "IDA 7.1", "plugins"),
     }
 
     return IDA_INSTALL_DIR_WINDOWS[version]
@@ -23,6 +24,7 @@ def ida_install_dir_macos(version, *args):
         '6.8' : os.path.join("/Applications", "IDA Pro 6.8", "idaq.app/Contents/MacOS/plugins"),
         '6.9' : os.path.join("/Applications", "IDA Pro 6.9", "idaq.app/Contents/MacOS/plugins"),
         '7.0' : os.path.join("/Applications", "IDA Pro 7.0", "idaq.app/Contents/MacOS/plugins"),
+        '7.1' : os.path.join("/Applications", "IDA Pro 7.1", "idaq.app/Contents/MacOS/plugins"),
     }
 
     return IDA_INSTALL_DIR_MACOS[version]
@@ -32,12 +34,14 @@ def ida_install_dir_linux(version, is_user, *args):
         '6.8' : os.path.join("/home", getpass.getuser() ,"IDA 6.8", "plugins"),
         '6.9' : os.path.join("/home", getpass.getuser() ,"IDA 6.9", "plugins"),
         '7.0' : os.path.join("/home", getpass.getuser() ,"IDA 7.0", "plugins"),
+        '7.1' : os.path.join("/home", getpass.getuser() ,"IDA 7.1", "plugins"),
     }
 
     IDA_INSTALL_DIR_LINUX_SYSTEM = {
         '6.8' : os.path.join("/opt", "IDA 6.8", "plugins"),
         '6.9' : os.path.join("/opt", "IDA 6.9", "plugins"),
         '7.0' : os.path.join("/opt", "IDA 7.0", "plugins"),
+        '7.1' : os.path.join("/opt", "IDA 7.1", "plugins"),
     }
 
     if is_user:
@@ -45,7 +49,7 @@ def ida_install_dir_linux(version, is_user, *args):
     else:
         return IDA_INSTALL_DIR_LINUX_SYSTEM[version]
 
-IDA_SUPPORTED_VERSIONS = ('6.8','6.9','7.0')
+IDA_SUPPORTED_VERSIONS = ('6.8','6.9','7.0','7.1')
 
 IDA_INSTALL_DIRS = {
     
